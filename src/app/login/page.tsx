@@ -10,13 +10,16 @@ export default function LoginPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setMessage(error.message);
-    else window.location.href = "/admin";
+    const form = new FormData();
+    form.set("email", email);
+    form.set("password", password);
+    const res = await fetch("/api/auth/login", { method: "POST", body: form });
+    if (!res.ok) {
+      const { error } = await res.json();
+      setMessage(error ?? "登录失败");
+      return;
+    }
+    window.location.href = "/admin";
   }
 
   return (
