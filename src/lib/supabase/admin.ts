@@ -2,6 +2,7 @@
 // Do NOT import from any client component.
 
 import { createClient as createServerSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 
 export function createAdminClient() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,7 +12,7 @@ export function createAdminClient() {
   }
 
   // Important: never expose serviceRoleKey to the browser
-  return createServerSupabaseClient(url, serviceRoleKey, {
+  return createServerSupabaseClient<Database>(url, serviceRoleKey, {
     auth: {
       // Admin usage should not persist sessions; use bearer only
       persistSession: false,

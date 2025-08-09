@@ -1,37 +1,41 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getPaginationRange, parsePaginationParams } from "@/services/pagination";
 
-// Simple protection using a static admin token header.
-// Set ADMIN_API_TOKEN in your env and send X-Admin-Token from your admin UI/CLI.
-function assertAdminAuth(request: Request) {
-  const token = process.env.ADMIN_API_TOKEN;
-  const header = request.headers.get("x-admin-token");
-  if (!token || header !== token) {
-    return false;
-  }
-  return true;
-}
-
-export async function POST(request: Request) {
-  if (!assertAdminAuth(request)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const { email, password, role = "admin" } = await request.json();
-  if (!email || !password) {
-    return NextResponse.json({ error: "email/password required" }, { status: 400 });
-  }
-
-  const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role },
-    app_metadata: { roles: [role] },
+// List users with optional search/sort/pagination
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const { page, pageSize, sort, order } = parsePaginationParams(searchParams, {
+    defaultSort: "created_at",
+    defaultOrder: "desc",
   });
+  const supabaseOrder = order === "asc" ? { ascending: true } : { ascending: false };
+  const search = searchParams.get("search")?.trim();
+
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("users")
+    .select("id, email, full_name, created_at, country, avatar_url", { count: "exact" });
+
+  if (search) {
+    // email ilike or full_name ilike
+    query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
+  }
+
+  // sort: only allow known columns
+  const sortable = new Set(["email", "full_name", "created_at", "country"]);
+  const sortColumn = sortable.has(sort) ? sort : "created_at";
+
+  const { from, to } = getPaginationRange(page, pageSize);
+
+  const { data, error, count } = await query
+    .order(sortColumn as "email" | "full_name" | "created_at" | "country", supabaseOrder)
+    .range(from, to);
+
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ user: data.user });
+
+  return NextResponse.json({ items: data ?? [], total: count ?? 0, page, pageSize });
 }
 
 

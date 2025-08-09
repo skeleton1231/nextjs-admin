@@ -23,6 +23,10 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
   --radius: 0.625rem;
+  /* Admin layout sticky offsets */
+  --admin-header-height: 56px;
+  --admin-filters-height: 56px;
+  --admin-sticky-top: calc(var(--admin-header-height) + var(--admin-filters-height));
 }
 
 .dark {

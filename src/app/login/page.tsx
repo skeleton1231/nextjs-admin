@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { createClient as createBrowserClient } from "@supabase/supabase-js";
+import { API_AUTH_LOGIN, ROUTE_ADMIN } from "@/services/urls";
+// Removed unused import
 
 export default function LoginPage() {
   const [email, setEmail] = React.useState("");
@@ -13,13 +14,13 @@ export default function LoginPage() {
     const form = new FormData();
     form.set("email", email);
     form.set("password", password);
-    const res = await fetch("/api/auth/login", { method: "POST", body: form });
+    const res = await fetch(API_AUTH_LOGIN, { method: "POST", body: form });
     if (!res.ok) {
       const { error } = await res.json();
       setMessage(error ?? "登录失败");
       return;
     }
-    window.location.href = "/admin";
+    window.location.href = ROUTE_ADMIN;
   }
 
   return (
