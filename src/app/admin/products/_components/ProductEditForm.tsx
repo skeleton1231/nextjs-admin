@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAdminProduct, useUpdateAdminProduct } from "@/services/admin/products";
+import { useAdminProduct, useUpdateAdminProduct, useUpdateProductInAllProductLists } from "@/services/admin/products";
 import { PRODUCT_FIELD_LABELS, type AdminProduct } from "@/services/admin/products/config";
 import type { AdminProductUpdateInput } from "@/services/admin/products/server";
 import { centsFromDisplay, displayFromCents } from "@/lib/price";
@@ -30,6 +30,7 @@ type FormState = Record<FormKey, string>;
 export default function ProductEditForm({ id, onSuccess, onCancel }: Props) {
 	const { data, isLoading, mutate } = useAdminProduct(id);
 	const { trigger, isMutating } = useUpdateAdminProduct(id);
+	const updateProductRowInLists = useUpdateProductInAllProductLists();
 
 	const emptyForm = useMemo(
 		() =>
@@ -69,8 +70,10 @@ export default function ProductEditForm({ id, onSuccess, onCancel }: Props) {
 			return acc;
 		}, {});
 
-		await trigger(payload as AdminProductUpdateInput);
-		await mutate();
+		const updated = await trigger(payload as AdminProductUpdateInput);
+		// Update product detail cache and all list caches optimistically
+		await mutate(updated, { revalidate: false });
+		await updateProductRowInLists(updated);
 		onSuccess?.();
 	}
 

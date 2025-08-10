@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useAdminProducts, useAdminProduct } from "@/services/admin/products";
 import {
 	DEFAULT_PRODUCT_SORT,
@@ -164,104 +164,109 @@ export default function AdminProductsPage() {
 	];
 
 	return (
-		<div className="space-y-4">
-			<div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-3">
-				<div className="flex items-center justify-between gap-2 flex-wrap">
-					<h1 className="text-xl font-semibold">产品管理</h1>
-					<div className="flex items-center gap-2">
-						{PRODUCT_FILTERS.map((f) => (
-							<input
-								key={f.key}
-								value={filters[f.key] ?? ""}
-								onChange={(e) => setFilter(f.key, e.target.value)}
-								placeholder={f.placeholder}
-								className={`h-9 ${f.key === "search" ? "w-64" : "w-36"} rounded-md border px-3 text-sm`}
-							/>
-						))}
+		<Suspense fallback={null}>
+			<div className="space-y-4">
+				<div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-3">
+					<div className="flex items-center justify-between gap-2 flex-wrap">
+						<h1 className="text-xl font-semibold">产品管理</h1>
+						<div className="flex items-center gap-2">
+							{PRODUCT_FILTERS.map((f) => (
+								<input
+									key={f.key}
+									value={filters[f.key] ?? ""}
+									onChange={(e) => setFilter(f.key, e.target.value)}
+									placeholder={f.placeholder}
+									className={`h-9 ${f.key === "search" ? "w-64" : "w-36"} rounded-md border px-3 text-sm`}
+								/>
+							))}
+						</div>
 					</div>
 				</div>
-			</div>
 
-			<BatchActionBar
-				selectedIds={selectedIds}
-				onClear={() => setRowSelection({})}
-				actions={productBatchActions}
-			/>
-
-			<div className="overflow-x-auto rounded-md border">
-				<DataTable
-					data={data?.items ?? []}
-					columns={columns}
-					sorting={sorting}
-					onSortingChange={onSortingChange}
-					isLoading={isLoading}
-					enableRowSelection
-					rowSelection={rowSelection}
-					onRowSelectionChange={setRowSelection}
-					getRowId={(row) => String((row as AdminProduct).id)}
+				<BatchActionBar
+					selectedIds={selectedIds}
+					onClear={() => setRowSelection({})}
+					actions={productBatchActions}
 				/>
-			</div>
 
-			<PaginationBar
-				page={data?.page ?? page}
-				pageSize={data?.pageSize ?? pageSize}
-				total={data?.total}
-				onPrev={() => setPage(Math.max(1, (data?.page ?? page) - 1))}
-				onNext={() => setPage((data?.page ?? page) + 1)}
-			/>
-			{/* 图片预览 */}
-			<Dialog
-				open={!!previewUrl}
-				onOpenChange={(open) => (!open ? setPreviewUrl(null) : null)}
-			>
-				<DialogContent className="w-[80vw] max-w-4xl h-[80vh]">
-					{previewUrl && (
-						<div className="absolute inset-0">
-							<Image
-								src={previewUrl}
-								alt="product preview"
-								fill
-								sizes="80vw"
-								className="object-contain"
-								priority
+				<div className="overflow-x-auto rounded-md border">
+					<DataTable
+						data={data?.items ?? []}
+						columns={columns}
+						sorting={sorting}
+						onSortingChange={onSortingChange}
+						isLoading={isLoading}
+						enableRowSelection
+						rowSelection={rowSelection}
+						onRowSelectionChange={setRowSelection}
+						getRowId={(row) => String((row as AdminProduct).id)}
+					/>
+				</div>
+
+				<PaginationBar
+					page={data?.page ?? page}
+					pageSize={data?.pageSize ?? pageSize}
+					total={data?.total}
+					onPrev={() => setPage(Math.max(1, (data?.page ?? page) - 1))}
+					onNext={() => setPage((data?.page ?? page) + 1)}
+				/>
+				{/* 图片预览 */}
+				<Dialog
+					open={!!previewUrl}
+					onOpenChange={(open) => (!open ? setPreviewUrl(null) : null)}
+				>
+					<DialogContent className="w-[80vw] max-w-4xl h-[80vh]">
+						<DialogHeader>
+							<DialogTitle className="sr-only">图片预览</DialogTitle>
+						</DialogHeader>
+						{previewUrl && (
+							<div className="absolute inset-0">
+								<Image
+									src={previewUrl}
+									alt="product preview"
+									fill
+									sizes="80vw"
+									className="object-contain"
+									priority
+								/>
+							</div>
+						)}
+					</DialogContent>
+				</Dialog>
+
+				{/* 详情弹窗 */}
+				<Dialog
+					open={!!detailId}
+					onOpenChange={(open) => (!open ? setDetailId(null) : null)}
+				>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>产品详情</DialogTitle>
+						</DialogHeader>
+						{detailId && <DetailDialogBody id={detailId} />}
+					</DialogContent>
+				</Dialog>
+
+				{/* 编辑弹窗 */}
+				<Dialog
+					open={!!editId}
+					onOpenChange={(open) => (!open ? setEditId(null) : null)}
+				>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>编辑产品</DialogTitle>
+						</DialogHeader>
+						{editId && (
+							<ProductEditForm
+								id={editId}
+								onSuccess={() => setEditId(null)}
+								onCancel={() => setEditId(null)}
 							/>
-						</div>
-					)}
-				</DialogContent>
-			</Dialog>
-
-			{/* 详情弹窗 */}
-			<Dialog
-				open={!!detailId}
-				onOpenChange={(open) => (!open ? setDetailId(null) : null)}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>产品详情</DialogTitle>
-					</DialogHeader>
-					{detailId && <DetailDialogBody id={detailId} />}
-				</DialogContent>
-			</Dialog>
-
-			{/* 编辑弹窗 */}
-			<Dialog
-				open={!!editId}
-				onOpenChange={(open) => (!open ? setEditId(null) : null)}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>编辑产品</DialogTitle>
-					</DialogHeader>
-					{editId && (
-						<ProductEditForm
-							id={editId}
-							onSuccess={() => setEditId(null)}
-							onCancel={() => setEditId(null)}
-						/>
-					)}
-				</DialogContent>
-			</Dialog>
-		</div>
+						)}
+					</DialogContent>
+				</Dialog>
+			</div>
+		</Suspense>
 	);
 }
 

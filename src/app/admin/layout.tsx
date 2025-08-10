@@ -1,5 +1,6 @@
 import { LogoutButton } from "@/components/logout-button";
 import { AdminNav } from "./_components/admin-nav";
+import { Suspense } from "react";
 
 export default function AdminLayout({
 	children,
@@ -13,7 +14,9 @@ export default function AdminLayout({
 				</div>
 				<LogoutButton />
 			</header>
-			<main className="px-6 overflow-y-auto">{children}</main>
+			<main className="px-6 overflow-y-auto">
+				<Suspense fallback={null}>{children}</Suspense>
+			</main>
 		</div>
 	);
 }
