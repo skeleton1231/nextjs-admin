@@ -5,20 +5,24 @@ import { Paginated, buildQuery } from "@/services/pagination";
 import type { AdminUser, UserSortableKey } from "@/services/admin/users/config";
 
 export type UserQuery = {
-  page?: number;
-  pageSize?: number;
-  search?: string;
-  sort?: UserSortableKey;
-  order?: "asc" | "desc";
+	page?: number;
+	pageSize?: number;
+	search?: string;
+	sort?: UserSortableKey;
+	order?: "asc" | "desc";
 };
 
 export function useAdminUsers(query: UserQuery) {
-  const key = `${API_ADMIN_USERS}${buildQuery(query as Record<string, unknown>)}`;
-  return useSWR<Paginated<AdminUser>>(key, jsonFetcher, { keepPreviousData: true });
+	const key = `${API_ADMIN_USERS}${buildQuery(query as Record<string, unknown>)}`;
+	return useSWR<Paginated<AdminUser>>(key, jsonFetcher, {
+		keepPreviousData: true,
+	});
 }
 
-export { USER_COLUMNS, DEFAULT_USER_SORT, ADMIN_USER_SELECT } from "@/services/admin/users/config";
+export {
+	USER_COLUMNS,
+	DEFAULT_USER_SORT,
+	ADMIN_USER_SELECT,
+} from "@/services/admin/users/config";
 
 export type { AdminUser, UserSortableKey } from "@/services/admin/users/config";
-
-

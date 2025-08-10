@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "biome:format": "biome format --write .",
+    "biome:lint": "biome lint ."
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
@@ -24,6 +26,7 @@
     "zod": "^4.0.16"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.1.4",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "^20",
