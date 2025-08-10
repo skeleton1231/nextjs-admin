@@ -1,17 +1,8 @@
 import useSWR from "swr";
 import { API_ADMIN_USERS } from "@/services/urls";
 import { jsonFetcher } from "@/services/fetcher";
-import { Tables } from "@/lib/supabase/database.types";
 import { Paginated, buildQuery } from "@/services/pagination";
-
-type UsersRow = Tables<"users">;
-
-export type AdminUser = Pick<
-  UsersRow,
-  "id" | "email" | "full_name" | "created_at" | "country" | "avatar_url"
->;
-
-export type UserSortableKey = "email" | "full_name" | "created_at" | "country";
+import type { AdminUser, UserSortableKey } from "@/services/admin/users/config";
 
 export type UserQuery = {
   page?: number;
@@ -23,7 +14,11 @@ export type UserQuery = {
 
 export function useAdminUsers(query: UserQuery) {
   const key = `${API_ADMIN_USERS}${buildQuery(query as Record<string, unknown>)}`;
-  return useSWR<Paginated<AdminUser>>(key, jsonFetcher);
+  return useSWR<Paginated<AdminUser>>(key, jsonFetcher, { keepPreviousData: true });
 }
+
+export { USER_COLUMNS, DEFAULT_USER_SORT, ADMIN_USER_SELECT } from "@/services/admin/users/config";
+
+export type { AdminUser, UserSortableKey } from "@/services/admin/users/config";
 
 

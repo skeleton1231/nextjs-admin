@@ -14,6 +14,8 @@ export type AdminProduct = Pick<
   | "rating"
   | "review_count"
   | "locale"
+  | "image_url"
+  | "affiliate_url"
   | "created_at"
 >;
 
@@ -68,6 +70,8 @@ export const ADMIN_PRODUCT_SELECT = (
     "rating",
     "review_count",
     "locale",
+    "image_url",
+    "affiliate_url",
     "created_at",
   ] as const
 ).join(", ");

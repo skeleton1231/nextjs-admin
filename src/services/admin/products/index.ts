@@ -16,7 +16,7 @@ export type ProductQuery = {
 
 export function useAdminProducts(query: ProductQuery) {
   const key = `${API_ADMIN_PRODUCTS}${buildQuery(query as Record<string, unknown>)}`;
-  return useSWR<Paginated<AdminProduct>>(key, jsonFetcher);
+  return useSWR<Paginated<AdminProduct>>(key, jsonFetcher, { keepPreviousData: true });
 }
 
 export { PRODUCT_FILTERS, PRODUCT_COLUMNS, DEFAULT_PRODUCT_SORT, ADMIN_PRODUCT_SELECT } from "@/services/admin/products/config";

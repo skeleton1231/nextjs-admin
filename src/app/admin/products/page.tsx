@@ -9,15 +9,11 @@ import {
   type ProductSortableKey,
   type AdminProduct,
 } from "@/services/admin/products/config";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import { type ColumnDef, type SortingState, type CellContext } from "@tanstack/react-table";
+import { DataTable, PaginationBar } from "@/components/data-table";
+import { buildSortingHandler } from "@/components/data-table/buildSortingHandler";
+import Image from "next/image";
+// Table UI is provided by DataTable internally
 
 export default function AdminProductsPage() {
   const [page, setPage] = useState(1);
@@ -27,6 +23,7 @@ export default function AdminProductsPage() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [category, setCategory] = useState("");
   const [locale, setLocale] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const query = useMemo(
     () => ({ page, pageSize, search, sort, order, category, locale }),
@@ -35,20 +32,78 @@ export default function AdminProductsPage() {
 
   const { data, isLoading } = useAdminProducts(query);
 
-  function renderCell(key: ProductSortableKey, p: AdminProduct) {
-    if (key === "price") return `${p.price} ${p.currency}`;
-    if (key === "created_at") return p.created_at?.slice(0, 19).replace("T", " ") ?? "-";
-    const v = p[key as keyof typeof p];
-    return v ?? (key === "review_count" ? 0 : "-");
-  }
+  const sorting: SortingState = useMemo(
+    () => [{ id: sort, desc: order === "desc" }],
+    [sort, order]
+  );
 
-  function onSort(col: ProductSortableKey) {
-    if (sort === col) setOrder(order === "asc" ? "desc" : "asc");
-    else {
-      setSort(col);
-      setOrder("asc");
-    }
-  }
+  const columns: ColumnDef<AdminProduct, unknown>[] = useMemo(() => {
+    const imageColumn: ColumnDef<AdminProduct, unknown> = {
+      id: "image",
+      accessorKey: "image_url",
+      header: "图片",
+      cell: (ctx) => {
+        const url = ctx.getValue() as string | null | undefined;
+        return url ? (
+          <button
+            type="button"
+            onClick={() => setPreviewUrl(url)}
+            className="block h-10 w-10 overflow-hidden rounded focus:outline-none focus:ring-2 focus:ring-ring cursor-zoom-in"
+            aria-label="预览图片"
+          >
+            <Image
+              src={url}
+              alt="product"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-cover"
+            />
+          </button>
+        ) : (
+          <div className="h-10 w-10 rounded bg-muted" />
+        );
+      },
+      enableSorting: false,
+    };
+
+    const mapped = PRODUCT_COLUMNS.map((c) => ({
+      id: c.key,
+      accessorKey: c.key as string,
+      header: c.label,
+      cell: (ctx: CellContext<AdminProduct, unknown>) => {
+        const row = ctx.row.original as AdminProduct;
+        if (c.key === "price") return `${row.price} ${row.currency}`;
+        if (c.key === "created_at") {
+          const v = ctx.getValue() as string | undefined;
+          return v ? v.slice(0, 19).replace("T", " ") : "-";
+        }
+        if (c.key === "name") {
+          const href = row.affiliate_url ?? undefined;
+          return href ? (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
+              {row.name}
+            </a>
+          ) : (
+            row.name
+          );
+        }
+        const value = ctx.getValue() as unknown;
+        if (value == null && c.key === "review_count") return 0;
+        return value ?? "-";
+      },
+      enableSorting: true,
+    } satisfies ColumnDef<AdminProduct, unknown>));
+
+    return [imageColumn, ...mapped];
+  }, []);
+
+  const onSortingChange = buildSortingHandler<ProductSortableKey>(sorting, {
+    onResetPage: () => setPage(1),
+    setSortKey: setSort,
+    setSortOrder: setOrder,
+    defaultSortKey: DEFAULT_PRODUCT_SORT,
+    defaultOrder: "desc",
+  });
 
   return (
     <div className="space-y-4">
@@ -82,72 +137,54 @@ export default function AdminProductsPage() {
       </div>
 
       <div className="overflow-x-auto rounded-md border">
-        <Table className="table-fixed">
-          <TableHeader className="z-20 bg-background">
-            <TableRow>
-              {PRODUCT_COLUMNS.map((c) => (
-                <TableHead
-                  key={c.key}
-                  className="cursor-pointer select-none"
-                  onClick={() => onSort(c.key as ProductSortableKey)}
-                >
-                  {c.label}
-                  {sort === c.key ? (order === "asc" ? " ▲" : " ▼") : null}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, rowIndex) => (
-                <TableRow key={`skeleton-${rowIndex}`}>
-                  {PRODUCT_COLUMNS.map((c) => (
-                    <TableCell key={c.key} className="px-3 py-2">
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : !data?.items?.length ? (
-              <TableRow>
-                <TableCell colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
-                  无数据
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.items.map((p) => (
-                <TableRow key={p.id}>
-                  {PRODUCT_COLUMNS.map((c) => (
-                    <TableCell key={c.key} className="px-3 py-2">
-                      {renderCell(c.key as ProductSortableKey, p)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          data={data?.items ?? []}
+          columns={columns}
+          sorting={sorting}
+          onSortingChange={onSortingChange}
+          isLoading={isLoading}
+        />
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <button
-          className="h-9 rounded-md border px-3 text-sm disabled:opacity-50"
-          disabled={page <= 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
+      <PaginationBar
+        page={data?.page ?? page}
+        pageSize={data?.pageSize ?? pageSize}
+        total={data?.total}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+      />
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setPreviewUrl(null)}
+          role="dialog"
+          aria-modal="true"
         >
-          上一页
-        </button>
-        <span className="text-sm">
-          第 {data?.page ?? page} 页 / 共 {Math.ceil((data?.total ?? 0) / (data?.pageSize ?? pageSize))} 页
-        </span>
-        <button
-          className="h-9 rounded-md border px-3 text-sm disabled:opacity-50"
-          disabled={!!data && (data.page * data.pageSize >= data.total)}
-          onClick={() => setPage((p) => p + 1)}
-        >
-          下一页
-        </button>
-      </div>
+          <div
+            className="relative w-[80vw] max-w-4xl h-[80vh] max-h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewUrl(null)}
+              className="absolute right-2 top-2 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white"
+              aria-label="关闭预览"
+            >
+              关闭
+            </button>
+            <div className="absolute inset-0">
+              <Image
+                src={previewUrl}
+                alt="product preview"
+                fill
+                sizes="80vw"
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
