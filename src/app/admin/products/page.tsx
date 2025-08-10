@@ -10,13 +10,9 @@ import {
 	type AdminProduct,
 	formatProductCell,
 } from "@/services/admin/products/config";
-import type {
-	ColumnDef,
-	SortingState,
-	CellContext,
-} from "@tanstack/react-table";
+import type { ColumnDef, CellContext } from "@tanstack/react-table";
 import { DataTable, PaginationBar, BatchActionBar } from "@/components/data-table";
-import { buildSortingHandler } from "@/components/data-table/buildSortingHandler";
+import { useListState } from "@/components/data-table/useListState";
 import type { BatchAction } from "@/types/batch";
 import Image from "next/image";
 import {
@@ -31,28 +27,31 @@ import ProductEditForm from "@/app/admin/products/_components/ProductEditForm";
 // Table UI is provided by DataTable internally
 
 export default function AdminProductsPage() {
-	const [page, setPage] = useState(1);
-	const [pageSize] = useState(20);
-	const [search, setSearch] = useState("");
-	const [sort, setSort] = useState<ProductSortableKey>(DEFAULT_PRODUCT_SORT);
-	const [order, setOrder] = useState<"asc" | "desc">("desc");
-	const [category, setCategory] = useState("");
-	const [locale, setLocale] = useState("");
+	const {
+		page,
+		setPage,
+		pageSize,
+		sort,
+		order,
+		filters,
+		setFilter,
+		sorting,
+		onSortingChange,
+		query,
+	} = useListState<ProductSortableKey, "search" | "category" | "locale">({
+		defaultSort: DEFAULT_PRODUCT_SORT,
+		defaultOrder: "desc",
+		defaultPage: 1,
+		defaultPageSize: 20,
+		filterKeys: ["search", "category", "locale"] as const,
+		syncToUrl: true,
+	});
+
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [detailId, setDetailId] = useState<string | null>(null);
 	const [editId, setEditId] = useState<string | null>(null);
 
-	const query = useMemo(
-		() => ({ page, pageSize, search, sort, order, category, locale }),
-		[page, pageSize, search, sort, order, category, locale],
-	);
-
 	const { data, isLoading } = useAdminProducts(query);
-
-	const sorting: SortingState = useMemo(
-		() => [{ id: sort, desc: order === "desc" }],
-		[sort, order],
-	);
 
 	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
@@ -141,13 +140,7 @@ export default function AdminProductsPage() {
 		return [imageColumn, ...mapped, actionColumn];
 	}, []);
 
-	const onSortingChange = buildSortingHandler<ProductSortableKey>(sorting, {
-		onResetPage: () => setPage(1),
-		setSortKey: setSort,
-		setSortOrder: setOrder,
-		defaultSortKey: DEFAULT_PRODUCT_SORT,
-		defaultOrder: "desc",
-	});
+	// sorting change is provided by useListState
 
 	const selectedIds = useMemo(() => {
 		const items = data?.items ?? [];
@@ -179,20 +172,8 @@ export default function AdminProductsPage() {
 						{PRODUCT_FILTERS.map((f) => (
 							<input
 								key={f.key}
-								value={
-									f.key === "search"
-										? search
-										: f.key === "category"
-											? category
-											: locale
-								}
-								onChange={(e) => {
-									setPage(1);
-									const value = e.target.value;
-									if (f.key === "search") setSearch(value);
-									else if (f.key === "category") setCategory(value);
-									else setLocale(value);
-								}}
+								value={filters[f.key] ?? ""}
+								onChange={(e) => setFilter(f.key, e.target.value)}
 								placeholder={f.placeholder}
 								className={`h-9 ${f.key === "search" ? "w-64" : "w-36"} rounded-md border px-3 text-sm`}
 							/>
@@ -225,8 +206,8 @@ export default function AdminProductsPage() {
 				page={data?.page ?? page}
 				pageSize={data?.pageSize ?? pageSize}
 				total={data?.total}
-				onPrev={() => setPage((p) => Math.max(1, p - 1))}
-				onNext={() => setPage((p) => p + 1)}
+				onPrev={() => setPage(Math.max(1, (data?.page ?? page) - 1))}
+				onNext={() => setPage((data?.page ?? page) + 1)}
 			/>
 			{/* 图片预览 */}
 			<Dialog

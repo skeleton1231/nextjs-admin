@@ -7,29 +7,23 @@ import {
 	USER_COLUMNS,
 	type AdminUser,
 } from "@/services/admin/users";
-import { type ColumnDef, type SortingState } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable, PaginationBar } from "@/components/data-table";
-import { buildSortingHandler } from "@/components/data-table/buildSortingHandler";
+import { useListState } from "@/components/data-table/useListState";
 // Table UI is provided by DataTable internally
 
 export default function AdminUsersPage() {
-	const [page, setPage] = useState(1);
-	const [pageSize] = useState(20);
-	const [search, setSearch] = useState("");
-	const [sort, setSort] = useState<UserSortableKey>("created_at");
-	const [order, setOrder] = useState<"asc" | "desc">("desc");
-
-	const query = useMemo(
-		() => ({ page, pageSize, search, sort, order }),
-		[page, pageSize, search, sort, order],
-	);
+	const { page, setPage, pageSize, sorting, onSortingChange, query, filters, setFilter } =
+		useListState<UserSortableKey, "search">({
+			defaultSort: "created_at",
+			defaultOrder: "desc",
+			defaultPage: 1,
+			defaultPageSize: 20,
+			filterKeys: ["search"] as const,
+			syncToUrl: true,
+		});
 
 	const { data, isLoading } = useAdminUsers(query);
-
-	const sorting: SortingState = useMemo(
-		() => [{ id: sort, desc: order === "desc" }],
-		[sort, order],
-	);
 
 	const columns: ColumnDef<AdminUser, unknown>[] = useMemo(() => {
 		return USER_COLUMNS.map((c) => ({
@@ -48,13 +42,7 @@ export default function AdminUsersPage() {
 		}));
 	}, []);
 
-	const onSortingChange = buildSortingHandler<UserSortableKey>(sorting, {
-		onResetPage: () => setPage(1),
-		setSortKey: (k) => setSort(k as UserSortableKey),
-		setSortOrder: setOrder,
-		defaultSortKey: "created_at" as UserSortableKey,
-		defaultOrder: "desc",
-	});
+	// sorting change is provided by useListState
 
 	return (
 		<div className="space-y-4">
@@ -63,11 +51,8 @@ export default function AdminUsersPage() {
 					<h1 className="text-xl font-semibold">用户管理</h1>
 					<div className="flex items-center gap-2">
 						<input
-							value={search}
-							onChange={(e) => {
-								setPage(1);
-								setSearch(e.target.value);
-							}}
+							value={filters.search ?? ""}
+							onChange={(e) => setFilter("search", e.target.value)}
 							placeholder="搜索邮箱/姓名"
 							className="h-9 w-64 rounded-md border px-3 text-sm"
 						/>
@@ -90,8 +75,8 @@ export default function AdminUsersPage() {
 				page={data?.page ?? page}
 				pageSize={data?.pageSize ?? pageSize}
 				total={data?.total}
-				onPrev={() => setPage((p) => Math.max(1, p - 1))}
-				onNext={() => setPage((p) => p + 1)}
+				onPrev={() => setPage(Math.max(1, (data?.page ?? page) - 1))}
+				onNext={() => setPage((data?.page ?? page) + 1)}
 			/>
 		</div>
 	);

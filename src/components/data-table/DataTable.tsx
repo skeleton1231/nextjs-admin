@@ -104,10 +104,13 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		enableSortingRemoval: false,
 		enableMultiSort: false,
 		enableRowSelection: !!enableRowSelection,
-		state: { sorting, rowSelection },
+		state: enableRowSelection
+			? { sorting, rowSelection: rowSelection ?? {} }
+			: { sorting },
 		onSortingChange,
-		onRowSelectionChange,
-		getRowId,
+		...(enableRowSelection
+			? { onRowSelectionChange, getRowId }
+			: {}),
 	});
 
 	const hasRows = table.getRowModel().rows.length > 0;
@@ -163,7 +166,12 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					</TableRow>
 				) : (
 					table.getRowModel().rows.map((row) => (
-						<TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+						<TableRow
+							key={row.id}
+							data-state={
+								enableRowSelection && row.getIsSelected() ? "selected" : undefined
+							}
+						>
 							{row.getVisibleCells().map((cell) => (
 								<TableCell key={cell.id} className="px-3 py-2">
 									{flexRender(cell.column.columnDef.cell, cell.getContext())}
