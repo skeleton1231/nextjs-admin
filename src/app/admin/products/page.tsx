@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAdminProducts } from "@/services/admin/products";
+import { useAdminProducts, useAdminProduct } from "@/services/admin/products";
 import {
   DEFAULT_PRODUCT_SORT,
   PRODUCT_FILTERS,
@@ -13,6 +13,10 @@ import { type ColumnDef, type SortingState, type CellContext } from "@tanstack/r
 import { DataTable, PaginationBar } from "@/components/data-table";
 import { buildSortingHandler } from "@/components/data-table/buildSortingHandler";
 import Image from "next/image";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ProductDetailInfo from "@/app/admin/products/_components/ProductDetailInfo";
+import ProductEditForm from "@/app/admin/products/_components/ProductEditForm";
+
 // Table UI is provided by DataTable internally
 
 export default function AdminProductsPage() {
@@ -24,6 +28,8 @@ export default function AdminProductsPage() {
   const [category, setCategory] = useState("");
   const [locale, setLocale] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const query = useMemo(
     () => ({ page, pageSize, search, sort, order, category, locale }),
@@ -36,6 +42,8 @@ export default function AdminProductsPage() {
     () => [{ id: sort, desc: order === "desc" }],
     [sort, order]
   );
+
+  // Local edit modal disabled; use intercepting routes instead
 
   const columns: ColumnDef<AdminProduct, unknown>[] = useMemo(() => {
     const imageColumn: ColumnDef<AdminProduct, unknown> = {
@@ -78,14 +86,7 @@ export default function AdminProductsPage() {
           return v ? v.slice(0, 19).replace("T", " ") : "-";
         }
         if (c.key === "name") {
-          const href = row.affiliate_url ?? undefined;
-          return href ? (
-            <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
-              {row.name}
-            </a>
-          ) : (
-            row.name
-          );
+          return row.name;
         }
         const value = ctx.getValue() as unknown;
         if (value == null && c.key === "review_count") return 0;
@@ -94,7 +95,31 @@ export default function AdminProductsPage() {
       enableSorting: true,
     } satisfies ColumnDef<AdminProduct, unknown>));
 
-    return [imageColumn, ...mapped];
+    const actionColumn: ColumnDef<AdminProduct, unknown> = {
+      id: "actions",
+      header: "操作",
+      cell: (ctx) => {
+        const row = ctx.row.original as AdminProduct;
+        return (
+          <div className="flex gap-2">
+            <button type="button" className="text-blue-600 hover:underline" onClick={() => setDetailId(String(row.id))}>
+              详情
+            </button>
+            <button type="button" className="text-blue-600 hover:underline" onClick={() => setEditId(String(row.id))}>
+              编辑
+            </button>
+            {row.affiliate_url && (
+              <a href={row.affiliate_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                外链
+              </a>
+            )}
+          </div>
+        );
+      },
+      enableSorting: false,
+    };
+
+    return [imageColumn, ...mapped, actionColumn];
   }, []);
 
   const onSortingChange = buildSortingHandler<ProductSortableKey>(sorting, {
@@ -153,40 +178,52 @@ export default function AdminProductsPage() {
         onPrev={() => setPage((p) => Math.max(1, p - 1))}
         onNext={() => setPage((p) => p + 1)}
       />
-      {previewUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setPreviewUrl(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="relative w-[80vw] max-w-4xl h-[80vh] max-h-[80vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setPreviewUrl(null)}
-              className="absolute right-2 top-2 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white"
-              aria-label="关闭预览"
-            >
-              关闭
-            </button>
+      {/* 图片预览 */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => (!open ? setPreviewUrl(null) : null)}>
+        <DialogContent className="w-[80vw] max-w-4xl h-[80vh]">
+          {previewUrl && (
             <div className="absolute inset-0">
-              <Image
-                src={previewUrl}
-                alt="product preview"
-                fill
-                sizes="80vw"
-                className="object-contain"
-                priority
-              />
+              <Image src={previewUrl} alt="product preview" fill sizes="80vw" className="object-contain" priority />
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 详情弹窗 */}
+      <Dialog open={!!detailId} onOpenChange={(open) => (!open ? setDetailId(null) : null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>产品详情</DialogTitle>
+          </DialogHeader>
+          {detailId && <DetailDialogBody id={detailId} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* 编辑弹窗 */}
+      <Dialog open={!!editId} onOpenChange={(open) => (!open ? setEditId(null) : null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑产品</DialogTitle>
+          </DialogHeader>
+          {editId && (
+            <ProductEditForm
+              id={editId}
+              onSuccess={() => setEditId(null)}
+              onCancel={() => setEditId(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+
+function DetailDialogBody({ id }: { id: string }) {
+  const { data, isLoading } = useAdminProduct(id);
+  if (isLoading) return <div className="p-2 text-sm text-muted-foreground">加载中...</div>;
+  if (!data) return <div className="p-2 text-sm text-muted-foreground">未找到该产品</div>;
+  return <ProductDetailInfo product={data} />;
 }
 
 

@@ -35,4 +35,37 @@ export async function fetchAdminProducts(params: FetchAdminProductsParams) {
   return { data, error, count } as const;
 }
 
+export type AdminProductUpdateInput = Partial<{
+  name: string;
+  slug: string;
+  category: string;
+  sub_category: string;
+  price: number;
+  currency: string;
+  locale: string;
+  image_url: string;
+  affiliate_url: string;
+}>;
+
+export async function fetchAdminProductById(id: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("all_products")
+    .select(ADMIN_PRODUCT_SELECT)
+    .eq("id", id)
+    .single();
+  return { data, error } as const;
+}
+
+export async function updateAdminProduct(id: string, input: AdminProductUpdateInput) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("all_products")
+    .update(input)
+    .eq("id", id)
+    .select(ADMIN_PRODUCT_SELECT)
+    .single();
+  return { data, error } as const;
+}
+
 
